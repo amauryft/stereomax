@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   mac:
     runs-on: macos-14
@@ -55,3 +58,13 @@ jobs:
           path: |
             dist/
             build.log
+
+      - name: Publish a download page (GitHub Release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(grep -m1 'project(Spread VERSION' CMakeLists.txt | sed -E 's/.*VERSION ([0-9.]+).*/\1/')
+          TAG="v$VER-build${{ github.run_number }}"
+          gh release create "$TAG" dist/Spread-*-Installer.pkg dist/auval.log \
+            --title "Spread $VER test build ${{ github.run_number }}" \
+            --notes-file installer/RELEASE_NOTES.md --prerelease
