@@ -1,0 +1,57 @@
+name: Build Mac installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (universal: Apple Silicon + Intel)
+        run: |
+          cmake -S . -B build -G Xcode \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Build AU + VST3
+        run: |
+          cmake --build build --config Release --target Spread_AU Spread_VST3 -- -quiet 2>&1 | tee build.log
+          test -d build/Spread_artefacts/Release/AU/Spread.component
+          test -d build/Spread_artefacts/Release/VST3/Spread.vst3
+
+      - name: Sign (ad-hoc) and package
+        run: |
+          set -e
+          VER=$(grep -m1 'project(Spread VERSION' CMakeLists.txt | sed -E 's/.*VERSION ([0-9.]+).*/\1/')
+          mkdir -p stage/au stage/vst3 dist
+          cp -R build/Spread_artefacts/Release/AU/Spread.component stage/au/
+          cp -R build/Spread_artefacts/Release/VST3/Spread.vst3 stage/vst3/
+          codesign --force --deep --sign - stage/au/Spread.component
+          codesign --force --deep --sign - stage/vst3/Spread.vst3
+          pkgbuild --root stage/au --install-location /Library/Audio/Plug-Ins/Components \
+            --identifier com.mauaudio.spread.au --version "$VER" au.pkg
+          pkgbuild --root stage/vst3 --install-location /Library/Audio/Plug-Ins/VST3 \
+            --identifier com.mauaudio.spread.vst3 --version "$VER" vst3.pkg
+          productbuild --package au.pkg --package vst3.pkg "dist/Spread-$VER-Installer.pkg"
+          lipo -info stage/au/Spread.component/Contents/MacOS/Spread | tee dist/architectures.txt
+
+      - name: Install on the build Mac and run Apple's AU validator (auval)
+        run: |
+          sudo installer -pkg dist/Spread-*-Installer.pkg -target /
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 3
+          auval -v aufx Sprd Mauf 2>&1 | tee dist/auval.log
+          grep -q "AU VALIDATION SUCCEEDED" dist/auval.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Spread-Mac-Installer
+          path: |
+            dist/
+            build.log
