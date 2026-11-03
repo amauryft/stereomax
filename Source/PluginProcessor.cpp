@@ -132,8 +132,23 @@ void SpreadProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     const float master = p ("master") / 100.0f;
     auto norm = [this] (const char* id) { auto* prm = apvts.getParameter (id); return prm->getValue(); };
     auto denorm = [this] (const char* id, float v) { auto* prm = apvts.getParameter (id); return prm->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, v)); };
-    auto linked = [&] (const char* id, const char* link) { float v = norm (id); if (b (link)) v *= master; return denorm (id, v); };
-    auto linkedBi = [&] (const char* id, const char* link) { float v = norm (id); if (b (link)) v = 0.5f + (v - 0.5f) * master; return denorm (id, v); };
+    // Balanced master: one shared factor for every linked knob, so their ratios never change.
+    // Up to 100% it scales down; above 100% it grows until the most-pushed linked knob reaches max at 200%.
+    struct LinkDef { const char* id; const char* link; bool bipolar; };
+    static const LinkDef linkDefs[] = { { "gen_amt", "link_gen", false }, { "gen_cents", "link_gen", false }, { "gen_size", "link_gen", false },
+                                        { "sh_lo", "link_shape", false }, { "sh_hi", "link_shape", false }, { "sh_top", "link_shape", false },
+                                        { "sh_tilt", "link_shape", true }, { "sh_drive", "link_shape", false },
+                                        { "sp_shuf", "link_space", false }, { "sp_dep", "link_space", false } };
+    float mGain = master;
+    if (master > 1.0f)
+    {
+        float mx = 0;
+        for (auto& d : linkDefs)
+            if (b (d.link)) mx = juce::jmax (mx, d.bipolar ? std::abs (norm (d.id) - 0.5f) * 2.0f : norm (d.id));
+        if (mx > 1e-4f) mGain = 1.0f + (master - 1.0f) * (1.0f / mx - 1.0f);
+    }
+    auto linked = [&] (const char* id, const char* link) { float v = norm (id); if (b (link)) v *= mGain; return denorm (id, v); };
+    auto linkedBi = [&] (const char* id, const char* link) { float v = norm (id); if (b (link)) v = 0.5f + (v - 0.5f) * mGain; return denorm (id, v); };
 
     const bool inOn = b ("in_on"), genOn = b ("gen_on"), shOn = b ("sh_on"), spOn = b ("sp_on"), gdOn = b ("gd_on"), outOn = b ("out_on");
     // input
@@ -328,13 +343,20 @@ void SpreadProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
 void SpreadProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (auto xml = apvts.copyState().createXml()) copyXmlToBinary (*xml, destData);
+    auto st = apvts.copyState();
+    st.setProperty ("uiScale", uiScale, nullptr);
+    if (auto xml = st.createXml()) copyXmlToBinary (*xml, destData);
 }
 
 void SpreadProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
-        if (xml->hasTagName (apvts.state.getType())) apvts.replaceState (juce::ValueTree::fromXml (*xml));
+        if (xml->hasTagName (apvts.state.getType()))
+        {
+            auto tree = juce::ValueTree::fromXml (*xml);
+            uiScale = (double) tree.getProperty ("uiScale", 0.8);
+            apvts.replaceState (tree);
+        }
 }
 
 juce::AudioProcessorEditor* SpreadProcessor::createEditor() { return new SpreadEditor (*this); }

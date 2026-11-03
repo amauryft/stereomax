@@ -108,6 +108,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
+    double uiScale = 0.8;   // window size, remembered with the session
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
 
     // ---- metering for the UI

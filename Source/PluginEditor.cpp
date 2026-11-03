@@ -31,7 +31,19 @@ juce::WebBrowserComponent::Options SpreadEditor::makeOptions()
                     .withBackend (juce::WebBrowserComponent::Options::Backend::defaultBackend)
                     .withNativeIntegrationEnabled()
                     .withKeepPageLoadedWhenBrowserIsHidden()
-                    .withResourceProvider ([this] (const auto& url) { return getResource (url); });
+                    .withResourceProvider ([this] (const auto& url) { return getResource (url); })
+                    .withNativeFunction ("setUiScale", [this] (const juce::Array<juce::var>& args, auto complete)
+                    {
+                        double s = args.isEmpty() ? 0.8 : (double) args[0];
+                        s = juce::jlimit (0.5, 1.5, s);
+                        proc.uiScale = s;
+                        setSize (juce::roundToInt (1640.0 * s), juce::roundToInt (1140.0 * s));
+                        complete (juce::var (s));
+                    })
+                    .withNativeFunction ("getUiScale", [this] (const juce::Array<juce::var>&, auto complete)
+                    {
+                        complete (juce::var (proc.uiScale));
+                    });
     for (auto& r : sliderRelays) opts = opts.withOptionsFrom (*r);
     for (auto& r : toggleRelays) opts = opts.withOptionsFrom (*r);
     return opts;
@@ -51,13 +63,18 @@ SpreadEditor::SpreadEditor (SpreadProcessor& p)
     setResizable (true, true);
     setResizeLimits (820, 570, 2460, 1710);
     if (auto* c = getConstrainer()) c->setFixedAspectRatio (1640.0 / 1140.0);
-    setSize (1312, 912);
+    const double s0 = juce::jlimit (0.5, 1.5, proc.uiScale);
+    setSize (juce::roundToInt (1640.0 * s0), juce::roundToInt (1140.0 * s0));
     startTimerHz (30);
 }
 
 SpreadEditor::~SpreadEditor() { stopTimer(); }
 
-void SpreadEditor::resized() { web.setBounds (getLocalBounds()); }
+void SpreadEditor::resized()
+{
+    web.setBounds (getLocalBounds());
+    proc.uiScale = getWidth() / 1640.0;
+}
 
 std::optional<juce::WebBrowserComponent::Resource> SpreadEditor::getResource (const juce::String& url)
 {

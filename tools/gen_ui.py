@@ -25,6 +25,67 @@ T = {'link_gen': 1, 'link_shape': 1, 'link_space': 1, 'in_on': 1, 'in_phl': 0, '
 LINKED = {'gen_amt': 'link_gen', 'gen_cents': 'link_gen', 'gen_size': 'link_gen', 'sh_lo': 'link_shape', 'sh_hi': 'link_shape',
           'sh_top': 'link_shape', 'sh_tilt': 'link_shape', 'sh_drive': 'link_shape', 'sp_shuf': 'link_space', 'sp_dep': 'link_space'}
 
+
+INFO = {
+ 'master': "MASTER — turns every LINKED module up or down together and keeps their balance. 100% = knobs exactly as you set them. Above 100% everything rises in proportion until the most-pushed knob reaches its max at 200%.",
+ 'link_gen': "LINK — lit = this section follows MASTER. Unlit = it stays where you set it.",
+ 'link_shape': "LINK — lit = this section follows MASTER. Unlit = it stays where you set it.",
+ 'link_space': "LINK — lit = this section follows MASTER. Unlit = it stays where you set it.",
+ 'byp': "BYPASS — red = this whole section is switched off; audio passes through it untouched.",
+ 'in_bal': "BALANCE — tilts the level between left and right.",
+ 'in_trim': "TRIM — input gain (±12 dB) before any processing.",
+ 'in_dly': "CH. DELAY — delays the right channel 0–20 ms. A quick Haas-style widen on the raw input.",
+ 'in_phl': "Ø L — flips the polarity of the left channel. Fixes out-of-phase recordings (watch CORR go positive).",
+ 'in_phr': "Ø R — flips the polarity of the right channel.",
+ 'in_swap': "SWAP — swaps left and right.",
+ 'in_mono': "MONO IN — sums the input to mono first, so all the width comes from this plugin.",
+ 'e_haas': "HAAS — delays one side by TIME. Big, obvious width; can sound hollow in mono.",
+ 'e_detune': "DETUNE — pitches left up and right down by CENTS. Classic doubler sheen. Mono-safe.",
+ 'e_chorus': "CHORUS — a slowly moving delay at RATE. Lush, animated width. Mono-safe.",
+ 'e_comb': "COMB — complementary comb filtering (TIME sets the spacing). Old-school pseudo-stereo. Mono-safe.",
+ 'e_allpass': "ALLPASS — phase-scrambling decorrelator. The most transparent width. Mono-safe.",
+ 'e_room': "ROOM — a tiny stereo room around the sound. SIZE sets how big.",
+ 'gen_amt': "AMOUNT — how much of the lit engines gets mixed in.",
+ 'gen_time': "TIME — the HAAS delay and the COMB spacing (1–40 ms).",
+ 'gen_cents': "CENTS — detune amount (0–25 cents).",
+ 'gen_rate': "RATE — chorus speed.",
+ 'gen_size': "SIZE — room size and tail length.",
+ 'sh_bass': "BASS MONO — everything below this frequency stays in the center. Fully left = OFF.",
+ 'sh_lo': "LO-MID — extra width from the bass-mono point up to 1.2 kHz. 100% = unchanged.",
+ 'sh_hi': "HI-MID — extra width from 1.2 to 6 kHz.",
+ 'sh_top': "HIGH — extra width above 6 kHz (air).",
+ 'sh_tilt': "SIDE TILT — right = wider highs / narrower lows; left = the opposite.",
+ 'sh_drive': "SIDE DRIVE — saturates only the stereo (side) part for air and excitement.",
+ 'solo_s': "SOLO S — hear only the side: exactly what's being added to the stereo field.",
+ 'solo_m': "SOLO M — hear only the mid: what mono listeners get.",
+ 'sp_shuf': "SHUFFLE — widens the low end (below ~700 Hz) without losing center punch.",
+ 'sp_tr': "TRANSIENT — width of attacks. Lower keeps hits centered and punchy.",
+ 'sp_sus': "SUSTAIN — width of tails and held notes.",
+ 'sp_mot': "MOTION — speed of a slow left/right drift.",
+ 'sp_dep': "DEPTH — how far MOTION moves things. 0 = off.",
+ 'sp_beyond': "BEYOND — crosstalk cancellation that pushes sound past the speakers. Best in the sweet spot; odd on headphones.",
+ 'sp_sync': "SYNC — locks MOTION to one cycle per bar of the song tempo.",
+ 'gd_thr': "THRESHOLD — Guard pulls width back when correlation drops below this. Lower = more freedom, higher = safer mono.",
+ 'gd_rec': "RECOVERY — how fast width comes back after Guard pulls it. AUTO adapts to the material.",
+ 'gd_auto': "AUTO — Guard's automatic width protection on/off.",
+ 'gd_listen': "LISTEN — hear only what Guard is removing.",
+ 'out_mid': "MID — level of the center (mono) part.",
+ 'out_side': "SIDE — level of the stereo part. Quick overall width trim.",
+ 'out_mix': "MIX — dry/wet blend for the whole plugin.",
+ 'out_gain': "OUTPUT — final level (±12 dB).",
+ 'out_mono': "MONO — hear your track summed to mono.",
+ 'out_bypass': "BYPASS ALL — compare against the original sound.",
+}
+MODINFO = {
+ 'Input': "INPUT — fixes and prepares the signal: level, balance, polarity, swap, mono-sum and a raw channel delay.",
+ 'Generate': "GENERATE — creates width from mono. Light any mix of the six engines, then set AMOUNT.",
+ 'Shape': "SHAPE — width per frequency band: keep bass mono, widen mids and highs separately, tilt or saturate the sides.",
+ 'Space': "SPACE — depth and movement: shuffle the lows, set attack vs tail width, add slow motion, or push BEYOND the speakers.",
+ 'Guard': "GUARD — mono safety. Watches correlation and automatically pulls width back before your mix cancels in mono.",
+ 'Output': "OUTPUT — final mid/side levels, dry/wet, output gain, plus MONO check and BYPASS ALL.",
+}
+def esc(t): return t.replace('"', '&quot;')
+
 def knobP(R, name, pid, labels=None, kind="knurl", skirt=False, ndots=13, lit=False, namesize=13):
     pad = 34 if labels else 15
     S = 2 * (R + pad); c = S / 2
@@ -62,12 +123,12 @@ def knobP(R, name, pid, labels=None, kind="knurl", skirt=False, ndots=13, lit=Fa
     svg = f'<svg width="{int(S)}" height="{int(S)}" viewBox="0 0 {int(S)} {int(S)}" aria-hidden="true">' + "".join(p) + '</svg>'
     link = LINKED.get(pid, "")
     lab = f'<div class="kname" style="font-size:{namesize}px">{name}</div>' if name else ""
-    return (f'<div class="kwrap"><div class="knob" tabindex="0" role="slider" aria-label="{name or "Master"}" data-p="{pid}" data-c="{c}" data-link="{link}" style="width:{int(S)}px;height:{int(S)}px">{svg}</div>'
+    return (f'<div class="kwrap"><div class="knob" tabindex="0" role="slider" aria-label="{name or "Master"}" data-info="{esc(INFO.get(pid, ""))}" data-p="{pid}" data-c="{c}" data-link="{link}" style="width:{int(S)}px;height:{int(S)}px">{svg}</div>'
             f'{lab}<div class="kval" data-v="{pid}"></div></div>')
 
 def tbtn(text, pid, col="green", small=True):
-    fs = 14 if small else 15
-    return (f'<button type="button" class="tb" data-t="{pid}" data-col="{col}" style="font-size:{fs}px"><span class="led" aria-hidden="true"></span><span class="tl">{text}</span></button>')
+    fs = 16 if small else 17
+    return (f'<button type="button" class="tb" data-t="{pid}" data-col="{col}" data-info="{esc(INFO.get(pid, ""))}" style="font-size:{fs}px"><span class="led" aria-hidden="true"></span><span class="tl">{text}</span></button>')
 
 def bez(btns, cols=2):
     return f'<div class="bezel" style="grid-template-columns:repeat({cols},minmax(0,1fr))">{"".join(btns)}</div>'
@@ -168,10 +229,12 @@ def row(*items):
     return f'<div class="row">{"".join(items)}</div>'
 
 def module(title, body, link=None, power=None):
-    foot = [tbtn("Link", link)] if link else []
-    foot.append(tbtn("On", power))
-    return (f'<section class="mod" aria-label="{title}"><div class="mhead">{screw()}<h2>{title}</h2>{screw()}</div>'
-            f'{body}<div style="flex-grow:1"></div>{bez(foot, len(foot))}<div class="mfoot">{screw()}{screw()}</div></section>')
+    byp = (f'<button type="button" class="tb byp" data-t="{power}" data-inv="1" data-col="red" data-info="{esc(INFO["byp"])}" aria-label="Bypass {title}">'
+           f'<span class="led" aria-hidden="true"></span><span class="tl">Bypass</span></button>')
+    ib = f'<button type="button" class="ib" aria-label="About {title}" data-info="{esc(MODINFO[title])}" data-always="1">i</button>'
+    foot = bez([tbtn("Link", link)], 1) if link else ""
+    return (f'<section class="mod" aria-label="{title}"><div class="mhead"><h2>{title}</h2><div class="hgrp">{ib}{byp}</div></div>'
+            f'{body}<div style="flex-grow:1"></div>{foot}<div class="mfoot">{screw()}{screw()}</div></section>')
 
 wf, WF = wf_frame(SCW, 170); wc, WC = wc_frame(SCW, 170); st, ST = st_frame(SCW, 170); chh, CH = ch_frame(SCW, 170)
 mods = [
@@ -213,16 +276,19 @@ mods = [
    + scr(svgbox(SCW, 96, meter_frame(SCW, 96, ["L", "R", "M", "S"], "out"), "outMeters", "Output meters"))
    + row(knobP(24, "Mid", "out_mid"), knobP(24, "Side", "out_side"))
    + row(knobP(24, "Mix", "out_mix"), knobP(24, "Output", "out_gain"))
-   + bez([tbtn("Mono", "out_mono", "red"), tbtn("Bypass", "out_bypass", "red")]),
+   + bez([tbtn("Mono", "out_mono", "red"), tbtn("Bypass all", "out_bypass", "red")]),
    power="out_on"),
 ]
 
 master = knobP(44, "", "master", labels=[(0, "0"), (0.5, "100"), (1, "200")], skirt=True, ndots=15, lit=True)
 header = (f'<header class="top">{wordmark()}'
           f'<div class="mastergrp">{master}<div class="minfo"><div class="mtitle">MASTER <span id="mPct">100%</span></div>'
-          f'<div class="msub">drag up/down · 100% = knobs as set · drives <span id="mCount">3</span> linked modules</div>'
+          f'<div class="msub">drag up/down · 100% = knobs as set · keeps their balance · drives <span id="mCount">3</span> linked</div>'
           f'<div id="mChips" class="mchips"></div></div></div>'
-          f'<div class="ver"><span>SPREAD</span><b>v0.1 TEST BUILD</b><span id="mode">—</span></div></header>')
+          f'<div class="hright"><div class="ver"><span>SPREAD</span><b>v0.2 TEST BUILD</b><span id="mode">—</span></div>'
+          f'<div class="hctl"><span class="lbl">SIZE</span><div class="bezel" style="grid-template-columns:repeat(5,minmax(0,1fr))">'
+          + "".join(f'<button type="button" class="tb szb" data-s="{s}" aria-label="Window size {lab}"><span class="tl">{lab}</span></button>' for s, lab in ((0.6, "S"), (0.8, "M"), (1.0, "L"), (1.25, "XL"), (1.5, "XXL")))
+          + f'</div><div class="bezel" style="grid-template-columns:1fr"><button type="button" id="infoBtn" class="tb" aria-pressed="true" data-info="INFO — hover any knob or button to see what it does. Click to turn these tips off or on."><span class="led" aria-hidden="true"></span><span class="tl">Info</span></button></div></div></div></header>')
 
 fonts = ""
 for fam, wt, sty, fn in (("Barlow Condensed", 600, "normal", "BarlowCondensed-SemiBold.ttf"), ("Barlow Condensed", 700, "normal", "BarlowCondensed-Bold.ttf"),
@@ -240,19 +306,33 @@ html,body{{margin:0;height:100%;background:#0e1215;overflow:hidden;user-select:n
 .mtitle span{{font-family:{MONO};font-weight:400;font-size:16px;letter-spacing:0;color:{TRACE}}}
 .msub{{font-family:{MONO};font-size:12px;color:{DIM};margin:4px 0}}
 .mchips{{display:flex;gap:4px;min-height:26px}}
-.ver{{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-family:{MONO};font-size:11px;color:#7ea58a;background:#0b100f;border:1px solid #04070a;border-radius:4px;box-shadow:inset 0 2px 8px #000;padding:8px 14px;width:240px}}
+.ver{{display:flex;gap:10px;align-items:baseline;font-family:{MONO};font-size:11px;color:#7ea58a;background:#0b100f;border:1px solid #04070a;border-radius:4px;box-shadow:inset 0 2px 8px #000;padding:6px 12px}}
 .ver b{{color:{TRACE};font-weight:400;font-size:15px}}
 .rack{{display:flex;justify-content:center;gap:4px;flex-grow:1;background:#10151a;padding:4px;border-radius:4px}}
 .mod{{width:{MODW}px;box-sizing:border-box;background:{PANEL};border-left:1px solid #3a4651;border-right:1px solid #141a1f;padding:12px 11px;display:flex;flex-direction:column;gap:10px;transition:opacity .2s}}
-.mod.off>*:not(.bezel):not(.mfoot):not(.mhead){{opacity:.35}}
+.mod.off>*:not(.bezel):not(.mfoot):not(.mhead){{opacity:.3}}
+.mod.off .mhead h2{{opacity:.5}}
 .mhead,.mfoot{{display:flex;justify-content:space-between;align-items:center}}
 .mhead h2{{margin:0;font-family:{FONT};font-weight:700;font-size:17px;letter-spacing:.14em;color:{LABEL};text-transform:uppercase}}
 .screen{{background:#0b100f;border-radius:6px;border:1px solid #04070a;box-shadow:inset 0 2px 10px #000,0 1px 0 #3b4752;overflow:hidden;display:flex;flex-direction:column}}
 .chips{{display:flex;gap:2px;flex-wrap:wrap;background:#0a0e0d;padding:2px}}
 .chip{{background:#17201e;padding:5px 8px;border-radius:2px;font-family:{MONO};font-size:13px;color:#c9d6c4;white-space:nowrap}}
 .bezel{{display:grid;gap:4px;padding:5px;background:#11161b;border-radius:4px;box-shadow:0 1px 0 #3b4752}}
-.tb{{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 10px;background:{CREAM};border:1px solid #5f5848;border-radius:3px;box-shadow:inset 0 -3px 0 #cfc5a8,inset 0 1px 0 #fffaf0;font-family:{FONT};font-weight:700;letter-spacing:.05em;color:{INK};cursor:pointer;text-transform:uppercase}}
-.tb:active{{box-shadow:inset 0 2px 3px #b9ae90;transform:translateY(1px)}}
+.tb{{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 10px;background:linear-gradient(#6a6252,#575042);border:1px solid #24211b;border-radius:3px;box-shadow:inset 0 1px 0 #857c69,inset 0 -2px 0 #463f33,0 1px 0 #0d1114;font-family:{FONT};font-weight:700;letter-spacing:.06em;color:#ffffff;cursor:pointer;text-transform:uppercase}}
+.tb[aria-pressed="true"]{{background:linear-gradient(#4d4639,#5a5344);box-shadow:inset 0 2px 4px #1c1914,0 1px 0 #3b4752}}
+.tb:active{{transform:translateY(1px)}}
+.byp{{min-height:30px;padding:0 8px;font-size:13px;gap:6px}}
+.byp .led{{height:14px;width:6px}}
+.hgrp{{display:flex;align-items:center;gap:6px}}
+.ib{{width:26px;height:26px;border-radius:50%;border:1px solid #0b0f12;background:#1b2228;color:{LABEL};font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;cursor:help;padding:0;box-shadow:inset 0 1px 0 #3a4651}}
+.ib:hover{{color:{HOT};border-color:{HOT}}}
+.hright{{display:flex;flex-direction:column;align-items:flex-end;gap:8px}}
+.hctl{{display:flex;align-items:center;gap:8px}}
+.hctl .lbl{{font-family:{FONT};font-weight:600;font-size:13px;letter-spacing:.14em;color:{DIM}}}
+.szb{{min-height:32px;padding:0 9px;font-size:14px}}
+#infoBtn{{min-height:32px;font-size:14px}}
+#tip{{position:absolute;z-index:50;max-width:300px;pointer-events:none;background:#0b100f;border:1px solid {TRACE};border-radius:4px;box-shadow:0 6px 18px #000a;padding:9px 11px;font-family:{MONO};font-size:13px;line-height:1.35;color:#d7e4d2;display:none}}
+#tip b{{color:{HOT};font-weight:400}}
 .tb:focus-visible,.knob:focus-visible{{outline:2px solid {HOT};outline-offset:2px}}
 .led{{width:8px;height:22px;border-radius:2px;background:#2c3a30;box-shadow:inset 0 1px 2px #000;flex-shrink:0}}
 .tl{{flex-grow:1;text-align:center}}
@@ -298,9 +378,18 @@ const S = {}, TG = {};
 const norm = k => S[k].getNormalisedValue();
 const tog = k => !!TG[k].getValue();
 const master = () => norm('master') * 2;           // 0..2, 1 = as set
-function effN(k) {                                   // normalised value after the master macro
+// Balanced master: every linked knob is scaled by the SAME factor, so their ratios never change.
+// 0..100% scales down; above 100% the factor grows until the most-pushed linked knob hits its max at 200%.
+function masterGain() {
+  const m = master(); if (m <= 1) return m;
+  let mx = 0;
+  for (const k in LINKED) if (tog(LINKED[k])) mx = Math.max(mx, k === 'sh_tilt' ? Math.abs(norm(k) - 0.5) * 2 : norm(k));
+  if (mx < 1e-4) return m;
+  return 1 + (m - 1) * (1 / mx - 1);
+}
+function effN(k) {
   let v = norm(k); const link = LINKED[k];
-  if (link && tog(link)) v = k === 'sh_tilt' ? 0.5 + (v - 0.5) * master() : v * master();
+  if (link && tog(link)) { const g = masterGain(); v = k === 'sh_tilt' ? 0.5 + (v - 0.5) * g : v * g; }
   return clamp(v);
 }
 const scaled = (k, n) => P[k][0] + (P[k][1] - P[k][0]) * n;
@@ -348,7 +437,7 @@ function bindKnob(el) {
 
 // ---------- toggles
 function drawToggle(el) {
-  const on = tog(el.dataset.t), col = LEDC[el.dataset.col] || LEDC.green, led = el.querySelector('.led');
+  const on = el.dataset.inv ? !tog(el.dataset.t) : tog(el.dataset.t), col = LEDC[el.dataset.col] || LEDC.green, led = el.querySelector('.led');
   led.style.background = on ? col : (el.dataset.col === 'red' ? '#3b2424' : '#2c3a30');
   led.style.boxShadow = on ? `0 0 8px ${col}` : 'inset 0 1px 2px #000';
   el.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -420,7 +509,7 @@ function drawHeader() {
   ['in_on', 'gen_on', 'sh_on', 'sp_on', 'gd_on', 'out_on'].forEach((k, i) => $$('.mod')[i].classList.toggle('off', !tog(k)));
   $('#mode').textContent = mock ? 'PREVIEW (no audio)' : 'LIVE';
 }
-function redrawAll() { $$('.knob').forEach(drawKnob); $$('.tb').forEach(drawToggle); drawWaterfall(); drawWidth(); drawStage(); drawThreshold(); drawHeader(); }
+function redrawAll() { $$('.knob').forEach(drawKnob); $$('.tb[data-t]').forEach(drawToggle); drawWaterfall(); drawWidth(); drawStage(); drawThreshold(); drawHeader(); }
 
 // ---------- meters & scope from DSP
 const corrHist = new Array(140).fill(1), pullHist = new Array(140).fill(0);
@@ -470,7 +559,34 @@ function init() {
   for (const k in P) { S[k] = Juce.getSliderState(k); S[k].valueChangedEvent.addListener(redrawAll); }
   for (const k in T) { TG[k] = Juce.getToggleState(k); TG[k].valueChangedEvent.addListener(redrawAll); }
   $$('.knob').forEach(bindKnob);
-  $$('.tb').forEach(el => el.addEventListener('click', () => { const k = el.dataset.t; TG[k].setValue(!tog(k)); }));
+  $$('.tb[data-t]').forEach(el => el.addEventListener('click', () => { const k = el.dataset.t; TG[k].setValue(!tog(k)); }));
+  // window size presets
+  const markSize = s => $$('.szb').forEach(b => { const on = Math.abs(+b.dataset.s - s) < 0.03; b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  let setScale = null;
+  if (!mock && Juce.getNativeFunction) { setScale = Juce.getNativeFunction('setUiScale'); Juce.getNativeFunction('getUiScale')().then(s => markSize(+s)); }
+  else markSize(0.8);
+  $$('.szb').forEach(b => b.addEventListener('click', () => { const s = +b.dataset.s; markSize(s); if (setScale) setScale(s); }));
+  // tooltips
+  let tipsOn = true, tipTimer = 0; const tip = $('#tip'), infoBtn = $('#infoBtn');
+  const paintInfo = () => { infoBtn.setAttribute('aria-pressed', tipsOn ? 'true' : 'false'); const led = infoBtn.querySelector('.led');
+    led.style.background = tipsOn ? '#62e86d' : '#2c3a30'; led.style.boxShadow = tipsOn ? '0 0 8px #62e86d' : 'inset 0 1px 2px #000'; };
+  infoBtn.addEventListener('click', () => { tipsOn = !tipsOn; paintInfo(); tip.style.display = 'none'; }); paintInfo();
+  const show = el => {
+    const txt = el.dataset.info; if (!txt) return;
+    const app = $('#app'), sc = app.getBoundingClientRect().width / __W__, r = el.getBoundingClientRect(), a = app.getBoundingClientRect();
+    const i = txt.indexOf(' — ');
+    tip.innerHTML = i > 0 ? `<b>${txt.slice(0, i)}</b><br>${txt.slice(i + 3)}` : txt;
+    tip.style.display = 'block';
+    let x = (r.left - a.left) / sc + r.width / sc / 2 - 150, y = (r.bottom - a.top) / sc + 8;
+    x = Math.max(8, Math.min(__W__ - 316, x));
+    if (y + tip.offsetHeight > __H__ - 8) y = (r.top - a.top) / sc - tip.offsetHeight - 8;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  };
+  $$('[data-info]').forEach(el => {
+    el.addEventListener('pointerenter', () => { if (!tipsOn && !el.dataset.always) return; clearTimeout(tipTimer); tipTimer = setTimeout(() => show(el), el.dataset.always ? 0 : 350); });
+    el.addEventListener('pointerleave', () => { clearTimeout(tipTimer); tip.style.display = 'none'; });
+    el.addEventListener('pointerdown', () => { clearTimeout(tipTimer); tip.style.display = 'none'; });
+  });
   if (!mock) window.__JUCE__.backend.addEventListener('meters', onMeters); else setInterval(mockMeters, 33);
   const anim = () => { drawStage(); if (tog('e_chorus')) drawWaterfall(); requestAnimationFrame(anim); }; anim();
   redrawAll();
@@ -483,7 +599,7 @@ for k, v in (("__P__", json.dumps(P)), ("__T__", json.dumps(T)), ("__LINKED__", 
 
 corners = "".join(f'<div class="corner" style="{p}">{screw()}</div>' for p in ("top:10px;left:10px", "top:10px;right:10px", "bottom:10px;left:10px", "bottom:10px;right:10px"))
 html = (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Spread</title><style>{CSS}</style></head><body>'
-        f'<main id="app">{corners}{header}<div class="rack">{"".join(mods)}</div></main>'
+        f'<main id="app">{corners}{header}<div class="rack">{"".join(mods)}</div><div id="tip" role="tooltip"></div></main>'
         f'<script type="module">{JS}</script></body></html>')
 open("/home/claude/spread-plugin/ui/index.html", "w").write(html)
 print("ui ok", len(html))
