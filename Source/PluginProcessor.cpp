@@ -3,80 +3,90 @@
 
 using APVTS = juce::AudioProcessorValueTreeState;
 
-static void addF (APVTS::ParameterLayout& l, const char* id, const char* name, float lo, float hi, float def, const char* unit = "")
+static std::unique_ptr<juce::AudioParameterFloat> pf (const char* id, const char* name, float lo, float hi, float def, const char* unit = "")
 {
-    l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { id, 1 }, name,
-                                                         juce::NormalisableRange<float> (lo, hi), def,
-                                                         juce::AudioParameterFloatAttributes().withLabel (unit)));
+    return std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { id, 1 }, name, juce::NormalisableRange<float> (lo, hi), def,
+                                                        juce::AudioParameterFloatAttributes().withLabel (unit));
 }
-static void addB (APVTS::ParameterLayout& l, const char* id, const char* name, bool def)
+static std::unique_ptr<juce::AudioParameterBool> pb (const char* id, const char* name, bool def)
 {
-    l.add (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { id, 1 }, name, def));
+    return std::make_unique<juce::AudioParameterBool> (juce::ParameterID { id, 1 }, name, def);
+}
+static std::unique_ptr<juce::AudioParameterChoice> pc (const char* id, const char* name, juce::StringArray choices, int def)
+{
+    return std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { id, 1 }, name, std::move (choices), def);
+}
+template <typename... Ps>
+static std::unique_ptr<juce::AudioProcessorParameterGroup> grp (const char* id, const char* name, Ps&&... ps)
+{
+    return std::make_unique<juce::AudioProcessorParameterGroup> (id, name, " | ", std::forward<Ps> (ps)...);
 }
 
+// Order matters: hosts and controllers list parameters in this order. Master and the section amounts come first.
 APVTS::ParameterLayout SpreadProcessor::createLayout()
 {
     APVTS::ParameterLayout l;
-    addF (l, "master", "Master", 0, 200, 100, "%");
-    addB (l, "link_gen", "Link Generate", true);
-    addB (l, "link_shape", "Link Shape", true);
-    addB (l, "link_space", "Link Space", true);
-    // Input
-    addB (l, "in_on", "Input On", true);
-    addF (l, "in_bal", "Balance", -100, 100, 0, "%");
-    addF (l, "in_trim", "Trim", -12, 12, 0, "dB");
-    addF (l, "in_dly", "Channel Delay", 0, 20, 0, "ms");
-    addB (l, "in_dlyside", "Delay Side", false);   // false = L, true = R
-    addB (l, "in_phl", "Phase L", false);
-    addB (l, "in_phr", "Phase R", false);
-    addB (l, "in_swap", "Swap", false);
-    addB (l, "in_mono", "Mono In", false);
-    // Generate
-    addB (l, "gen_on", "Generate On", true);
-    addF (l, "gen_amt", "Amount", 0, 100, 60, "%");
-    addF (l, "gen_time", "Time", 1, 40, 12, "ms");
-    addF (l, "gen_cents", "Cents", 0, 25, 9, "ct");
-    addF (l, "gen_rate", "Rate", 0.05f, 5, 0.6f, "Hz");
-    addF (l, "gen_size", "Size", 0, 100, 30, "%");
-    addB (l, "e_haas", "Haas", true);
-    addB (l, "e_detune", "Detune", true);
-    addB (l, "e_chorus", "Chorus", false);
-    addB (l, "e_comb", "Comb", false);
-    addB (l, "e_allpass", "Allpass", true);
-    addB (l, "e_room", "Room", false);
-    // Shape
-    addB (l, "sh_on", "Shape On", true);
-    addF (l, "sh_bass", "Bass Mono", 0, 300, 150, "Hz");
-    addF (l, "sh_lo", "Lo-Mid Width", 0, 100, 35, "%");
-    addF (l, "sh_hi", "Hi-Mid Width", 0, 100, 50, "%");
-    addF (l, "sh_top", "High Width", 0, 100, 70, "%");
-    addF (l, "sh_tilt", "Side Tilt", -100, 100, 0, "%");
-    addF (l, "sh_drive", "Side Drive", 0, 100, 20, "%");
-    addB (l, "solo_s", "Solo Side", false);
-    addB (l, "solo_m", "Solo Mid", false);
-    // Space
-    addB (l, "sp_on", "Space On", true);
-    addF (l, "sp_shuf", "Shuffle", 0, 6, 2, "dB");
-    addF (l, "sp_tr", "Transient Width", 0, 200, 100, "%");
-    addF (l, "sp_sus", "Sustain Width", 0, 200, 100, "%");
-    addF (l, "sp_mot", "Motion Rate", 0.02f, 2, 0.2f, "Hz");
-    addF (l, "sp_dep", "Motion Depth", 0, 100, 0, "%");
-    addB (l, "sp_beyond", "Beyond", false);
-    addB (l, "sp_sync", "Sync", false);
-    // Guard
-    addB (l, "gd_on", "Guard On", true);
-    addB (l, "gd_auto", "Guard Auto", true);
-    addF (l, "gd_thr", "Threshold", -0.5f, 0.5f, -0.05f);
-    addF (l, "gd_rec", "Recovery", 0, 4, 2);
-    addB (l, "gd_listen", "Listen", false);
-    // Output
-    addB (l, "out_on", "Output On", true);
-    addF (l, "out_mid", "Mid", -12, 12, 0, "dB");
-    addF (l, "out_side", "Side", -12, 12, 0, "dB");
-    addF (l, "out_mix", "Mix", 0, 100, 100, "%");
-    addF (l, "out_gain", "Output", -12, 12, 0, "dB");
-    addB (l, "out_mono", "Mono", false);
-    addB (l, "out_bypass", "Bypass", false);
+    l.add (grp ("master", "Master",
+        pf ("master", "Master", 0, 200, 100, "%"),
+        pf ("gen_amt", "Generate Amount", 0, 100, 60, "%"),
+        pf ("sh_top", "Shape High Width", 0, 100, 70, "%"),
+        pf ("sp_shuf", "Space Shuffle", 0, 6, 2, "dB"),
+        pf ("out_mix", "Output Mix", 0, 100, 100, "%"),
+        pb ("link_gen", "Link Generate", true),
+        pb ("link_shape", "Link Shape", true),
+        pb ("link_space", "Link Space", true)));
+    l.add (grp ("input", "Input",
+        pb ("in_on", "Input On", true),
+        pf ("in_bal", "Input Balance", -100, 100, 0, "%"),
+        pf ("in_trim", "Input Trim", -12, 12, 0, "dB"),
+        pf ("in_dly", "Input Ch Delay", 0, 20, 0, "ms"),
+        pb ("in_dlyside", "Input Delay on Right", false),
+        pb ("in_phl", "Input Phase L", false),
+        pb ("in_phr", "Input Phase R", false),
+        pb ("in_swap", "Input Swap LR", false),
+        pb ("in_mono", "Input Mono Sum", false)));
+    l.add (grp ("generate", "Generate",
+        pb ("gen_on", "Generate On", true),
+        pf ("gen_time", "Generate Time", 1, 40, 12, "ms"),
+        pf ("gen_cents", "Generate Cents", 0, 25, 9, "ct"),
+        pf ("gen_rate", "Generate Rate", 0.05f, 5, 0.6f, "Hz"),
+        pf ("gen_size", "Generate Size", 0, 100, 30, "%"),
+        pb ("e_haas", "Generate Haas", true),
+        pb ("e_detune", "Generate Detune", true),
+        pb ("e_chorus", "Generate Chorus", false),
+        pb ("e_comb", "Generate Comb", false),
+        pb ("e_allpass", "Generate Allpass", true),
+        pb ("e_room", "Generate Room", false)));
+    l.add (grp ("shape", "Shape",
+        pb ("sh_on", "Shape On", true),
+        pf ("sh_bass", "Shape Bass Mono", 0, 300, 150, "Hz"),
+        pf ("sh_lo", "Shape Lo-Mid Width", 0, 100, 35, "%"),
+        pf ("sh_hi", "Shape Hi-Mid Width", 0, 100, 50, "%"),
+        pf ("sh_tilt", "Shape Side Tilt", -100, 100, 0, "%"),
+        pf ("sh_drive", "Shape Side Drive", 0, 100, 20, "%"),
+        pb ("solo_s", "Shape Solo Side", false),
+        pb ("solo_m", "Shape Solo Mid", false)));
+    l.add (grp ("space", "Space",
+        pb ("sp_on", "Space On", true),
+        pf ("sp_tr", "Space Transient Width", 0, 200, 100, "%"),
+        pf ("sp_sus", "Space Sustain Width", 0, 200, 100, "%"),
+        pf ("sp_mot", "Space Motion Rate", 0.02f, 2, 0.2f, "Hz"),
+        pf ("sp_dep", "Space Motion Depth", 0, 100, 0, "%"),
+        pb ("sp_beyond", "Space Beyond", false),
+        pb ("sp_sync", "Space Sync", false)));
+    l.add (grp ("guard", "Guard",
+        pb ("gd_on", "Guard On", true),
+        pb ("gd_auto", "Guard Auto", true),
+        pf ("gd_thr", "Guard Threshold", -0.5f, 0.5f, -0.05f),
+        pc ("gd_rec", "Guard Recovery", { "100 ms", "400 ms", "800 ms", "1.5 s", "Auto" }, 2),
+        pb ("gd_listen", "Guard Listen", false)));
+    l.add (grp ("output", "Output",
+        pb ("out_on", "Output On", true),
+        pf ("out_mid", "Output Mid", -12, 12, 0, "dB"),
+        pf ("out_side", "Output Side", -12, 12, 0, "dB"),
+        pf ("out_gain", "Output Gain", -12, 12, 0, "dB"),
+        pb ("out_mono", "Output Mono Check", false),
+        pb ("out_bypass", "Output Bypass All", false)));
     return l;
 }
 
@@ -191,7 +201,7 @@ void SpreadProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     // guard
     const bool gAuto = b ("gd_auto"), listen = b ("gd_listen");
     const float thr = p ("gd_thr");
-    const int rec = juce::jlimit (0, 4, (int) std::round (p ("gd_rec")));
+    const int rec = juce::jlimit (0, 4, (int) std::round (p ("gd_rec")));  // choice index
     const float recMs[4] = { 100, 400, 800, 1500 };
     // output
     smAmt.setTargetValue (genOn ? amt : 0.0f);
