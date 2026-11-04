@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Spread VERSION 0.2.0)
+project(Spread VERSION 0.3.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,11 +13,11 @@ FetchContent_MakeAvailable(juce)
 
 juce_add_plugin(Spread
     COMPANY_NAME "Mau Audio"
-    BUNDLE_ID "com.mauaudio.spread"
+    BUNDLE_ID "com.mauaudio.superspread"
     PLUGIN_MANUFACTURER_CODE Mauf
     PLUGIN_CODE Sprd
     FORMATS AU VST3
-    PRODUCT_NAME "Spread"
+    PRODUCT_NAME "SuperSpread"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE

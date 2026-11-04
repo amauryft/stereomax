@@ -26,6 +26,7 @@ APVTS::ParameterLayout SpreadProcessor::createLayout()
     addF (l, "in_bal", "Balance", -100, 100, 0, "%");
     addF (l, "in_trim", "Trim", -12, 12, 0, "dB");
     addF (l, "in_dly", "Channel Delay", 0, 20, 0, "ms");
+    addB (l, "in_dlyside", "Delay Side", false);   // false = L, true = R
     addB (l, "in_phl", "Phase L", false);
     addB (l, "in_phr", "Phase R", false);
     addB (l, "in_swap", "Swap", false);
@@ -154,7 +155,7 @@ void SpreadProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     // input
     const float bal = p ("in_bal") / 100.0f, trim = juce::Decibels::decibelsToGain (p ("in_trim"));
     const float chD = p ("in_dly") * 0.001f * (float) sr;
-    const bool phL = b ("in_phl"), phR = b ("in_phr"), swap = b ("in_swap"), monoIn = b ("in_mono");
+    const bool phL = b ("in_phl"), phR = b ("in_phr"), swap = b ("in_swap"), monoIn = b ("in_mono"), dlyR = b ("in_dlyside");
     // generate
     const float amt = linked ("gen_amt", "link_gen") / 100.0f;
     const float timeS = p ("gen_time") * 0.001f * (float) sr;
@@ -222,8 +223,8 @@ void SpreadProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             if (swap) std::swap (l, r);
             if (monoIn) { float m = 0.5f * (l + r); l = r = m; }
             l *= juce::jmin (1.0f, 1.0f - bal); r *= juce::jmin (1.0f, 1.0f + bal);
-            chDelay.push (r);
-            if (chD > 0.5f) r = chDelay.read (chD);
+            chDelay.push (dlyR ? r : l);
+            if (chD > 0.5f) { if (dlyR) r = chDelay.read (chD); else l = chDelay.read (chD); }
         }
         iLR = iLR * statA + l * r * (1 - statA); iLL = iLL * statA + l * l * (1 - statA); iRR = iRR * statA + r * r * (1 - statA);
         pkInL = juce::jmax (std::abs (l), pkInL * pkDecay); pkInR = juce::jmax (std::abs (r), pkInR * pkDecay);
@@ -345,6 +346,7 @@ void SpreadProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto st = apvts.copyState();
     st.setProperty ("uiScale", uiScale, nullptr);
+    st.setProperty ("uiTheme", uiTheme, nullptr);
     if (auto xml = st.createXml()) copyXmlToBinary (*xml, destData);
 }
 
@@ -355,6 +357,7 @@ void SpreadProcessor::setStateInformation (const void* data, int sizeInBytes)
         {
             auto tree = juce::ValueTree::fromXml (*xml);
             uiScale = (double) tree.getProperty ("uiScale", 0.8);
+            uiTheme = tree.getProperty ("uiTheme", "light").toString();
             apvts.replaceState (tree);
         }
 }

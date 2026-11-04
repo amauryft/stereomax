@@ -37,12 +37,21 @@ juce::WebBrowserComponent::Options SpreadEditor::makeOptions()
                         double s = args.isEmpty() ? 0.8 : (double) args[0];
                         s = juce::jlimit (0.5, 1.5, s);
                         proc.uiScale = s;
-                        setSize (juce::roundToInt (1640.0 * s), juce::roundToInt (1140.0 * s));
+                        setSize (juce::roundToInt (1894.0 * s), juce::roundToInt (850.0 * s));
                         complete (juce::var (s));
                     })
                     .withNativeFunction ("getUiScale", [this] (const juce::Array<juce::var>&, auto complete)
                     {
                         complete (juce::var (proc.uiScale));
+                    })
+                    .withNativeFunction ("setTheme", [this] (const juce::Array<juce::var>& args, auto complete)
+                    {
+                        if (! args.isEmpty()) proc.uiTheme = args[0].toString();
+                        complete (juce::var (proc.uiTheme));
+                    })
+                    .withNativeFunction ("getTheme", [this] (const juce::Array<juce::var>&, auto complete)
+                    {
+                        complete (juce::var (proc.uiTheme));
                     });
     for (auto& r : sliderRelays) opts = opts.withOptionsFrom (*r);
     for (auto& r : toggleRelays) opts = opts.withOptionsFrom (*r);
@@ -61,10 +70,10 @@ SpreadEditor::SpreadEditor (SpreadProcessor& p)
     web.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
     setResizable (true, true);
-    setResizeLimits (820, 570, 2460, 1710);
-    if (auto* c = getConstrainer()) c->setFixedAspectRatio (1640.0 / 1140.0);
+    setResizeLimits (947, 425, 2841, 1275);
+    if (auto* c = getConstrainer()) c->setFixedAspectRatio (1894.0 / 850.0);
     const double s0 = juce::jlimit (0.5, 1.5, proc.uiScale);
-    setSize (juce::roundToInt (1640.0 * s0), juce::roundToInt (1140.0 * s0));
+    setSize (juce::roundToInt (1894.0 * s0), juce::roundToInt (850.0 * s0));
     startTimerHz (30);
 }
 
@@ -73,7 +82,7 @@ SpreadEditor::~SpreadEditor() { stopTimer(); }
 void SpreadEditor::resized()
 {
     web.setBounds (getLocalBounds());
-    proc.uiScale = getWidth() / 1640.0;
+    proc.uiScale = getWidth() / 1894.0;
 }
 
 std::optional<juce::WebBrowserComponent::Resource> SpreadEditor::getResource (const juce::String& url)

@@ -92,7 +92,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Spread"; }
+    const juce::String getName() const override { return "SuperSpread"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -109,6 +109,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     double uiScale = 0.8;   // window size, remembered with the session
+    juce::String uiTheme { "light" };
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
 
     // ---- metering for the UI

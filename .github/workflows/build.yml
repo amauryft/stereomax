@@ -24,28 +24,36 @@ jobs:
       - name: Build AU + VST3
         run: |
           cmake --build build --config Release --target Spread_AU Spread_VST3 -- -quiet 2>&1 | tee build.log
-          test -d build/Spread_artefacts/Release/AU/Spread.component
-          test -d build/Spread_artefacts/Release/VST3/Spread.vst3
+          test -d build/Spread_artefacts/Release/AU/SuperSpread.component
+          test -d build/Spread_artefacts/Release/VST3/SuperSpread.vst3
 
       - name: Sign (ad-hoc) and package
         run: |
           set -e
           VER=$(grep -m1 'project(Spread VERSION' CMakeLists.txt | sed -E 's/.*VERSION ([0-9.]+).*/\1/')
           mkdir -p stage/au stage/vst3 dist
-          cp -R build/Spread_artefacts/Release/AU/Spread.component stage/au/
-          cp -R build/Spread_artefacts/Release/VST3/Spread.vst3 stage/vst3/
-          codesign --force --deep --sign - stage/au/Spread.component
-          codesign --force --deep --sign - stage/vst3/Spread.vst3
-          pkgbuild --root stage/au --install-location /Library/Audio/Plug-Ins/Components \
-            --identifier com.mauaudio.spread.au --version "$VER" au.pkg
+          cp -R build/Spread_artefacts/Release/AU/SuperSpread.component stage/au/
+          cp -R build/Spread_artefacts/Release/VST3/SuperSpread.vst3 stage/vst3/
+          codesign --force --deep --sign - stage/au/SuperSpread.component
+          codesign --force --deep --sign - stage/vst3/SuperSpread.vst3
+          # remove the old "Spread" test builds so Logic doesn't list two plugins
+          mkdir -p scripts && cat > scripts/preinstall <<'SH'
+          #!/bin/sh
+          rm -rf "/Library/Audio/Plug-Ins/Components/Spread.component" "/Library/Audio/Plug-Ins/VST3/Spread.vst3"
+          rm -rf "$HOME/Library/Audio/Plug-Ins/Components/Spread.component" "$HOME/Library/Audio/Plug-Ins/VST3/Spread.vst3"
+          exit 0
+          SH
+          chmod +x scripts/preinstall
+          pkgbuild --root stage/au --install-location /Library/Audio/Plug-Ins/Components --scripts scripts \
+            --identifier com.mauaudio.superspread.au --version "$VER" au.pkg
           pkgbuild --root stage/vst3 --install-location /Library/Audio/Plug-Ins/VST3 \
-            --identifier com.mauaudio.spread.vst3 --version "$VER" vst3.pkg
-          productbuild --package au.pkg --package vst3.pkg "dist/Spread-$VER-Installer.pkg"
-          lipo -info stage/au/Spread.component/Contents/MacOS/Spread | tee dist/architectures.txt
+            --identifier com.mauaudio.superspread.vst3 --version "$VER" vst3.pkg
+          productbuild --package au.pkg --package vst3.pkg "dist/SuperSpread-$VER-Installer.pkg"
+          lipo -info stage/au/SuperSpread.component/Contents/MacOS/SuperSpread | tee dist/architectures.txt
 
       - name: Install on the build Mac and run Apple's AU validator (auval)
         run: |
-          sudo installer -pkg dist/Spread-*-Installer.pkg -target /
+          sudo installer -pkg dist/SuperSpread-*-Installer.pkg -target /
           killall -9 AudioComponentRegistrar 2>/dev/null || true
           sleep 3
           auval -v aufx Sprd Mauf 2>&1 | tee dist/auval.log
@@ -65,6 +73,6 @@ jobs:
         run: |
           VER=$(grep -m1 'project(Spread VERSION' CMakeLists.txt | sed -E 's/.*VERSION ([0-9.]+).*/\1/')
           TAG="v$VER-build${{ github.run_number }}"
-          gh release create "$TAG" dist/Spread-*-Installer.pkg dist/auval.log \
-            --title "Spread $VER test build ${{ github.run_number }}" \
+          gh release create "$TAG" dist/SuperSpread-*-Installer.pkg dist/auval.log \
+            --title "SuperSpread $VER test build ${{ github.run_number }}" \
             --notes-file installer/RELEASE_NOTES.md --prerelease
